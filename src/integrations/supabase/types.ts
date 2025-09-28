@@ -144,6 +144,14 @@ export type Database = {
         }
         Returns: string
       }
+      create_user_with_role_simple: {
+        Args: {
+          user_display_name?: string
+          user_email: string
+          user_role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: Json
+      }
       delete_user_completely: {
         Args: { target_user_id: string }
         Returns: boolean

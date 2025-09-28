@@ -85,14 +85,51 @@ const UserManagement: React.FC = () => {
     }
 
     try {
-      const { data, error } = await supabase.rpc('create_user_with_role', {
-        user_email: newUser.email,
-        user_password: newUser.password,
-        user_role: newUser.role,
-        user_display_name: newUser.displayName || null
+      // Step 1: Create user with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: newUser.email,
+        password: newUser.password,
+        email_confirm: true,
+        user_metadata: {
+          display_name: newUser.displayName || newUser.email
+        }
       });
 
-      if (error) throw error;
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error('No user returned from auth creation');
+      }
+
+      // Step 2: Add profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          email: newUser.email,
+          display_name: newUser.displayName || newUser.email
+        });
+
+      if (profileError) {
+        console.error('Profile error:', profileError);
+        throw profileError;
+      }
+
+      // Step 3: Add role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: authData.user.id,
+          role: newUser.role
+        });
+
+      if (roleError) {
+        console.error('Role error:', roleError);
+        throw roleError;
+      }
 
       toast({
         title: "Éxito",
@@ -111,7 +148,7 @@ const UserManagement: React.FC = () => {
       console.error('Error creating user:', error);
       toast({
         title: "Error",
-        description: "No se pudo crear el usuario",
+        description: `No se pudo crear el usuario: ${error.message || 'Error desconocido'}`,
         variant: "destructive"
       });
     }
