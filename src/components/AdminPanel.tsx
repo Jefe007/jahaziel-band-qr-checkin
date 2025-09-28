@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,6 +16,7 @@ export default function AdminPanel() {
         checkAdminRole(session.user.id);
       } else if (event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
+        setCurrentUserRole(null);
       }
     });
 
@@ -26,7 +28,11 @@ export default function AdminPanel() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.user) {
-        await checkAdminRole(session.user.id);
+        const role = await checkAdminRole(session.user.id);
+        if (role) {
+          setCurrentUserRole(role);
+          setIsAuthenticated(true);
+        }
       } else {
         setIsAuthenticated(false);
       }
@@ -38,7 +44,7 @@ export default function AdminPanel() {
     }
   };
 
-  const checkAdminRole = async (userId: string) => {
+  const checkAdminRole = async (userId: string): Promise<string | null> => {
     try {
       const { data: userRole } = await supabase
         .from('user_roles')
@@ -47,10 +53,10 @@ export default function AdminPanel() {
         .in('role', ['admin', 'super_admin', 'checkin_operator', 'registrations_manager'])
         .single();
 
-      setIsAuthenticated(!!userRole);
+      return userRole?.role || null;
     } catch (error) {
       console.error('Error checking admin role:', error);
-      setIsAuthenticated(false);
+      return null;
     }
   };
 
@@ -61,6 +67,7 @@ export default function AdminPanel() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setIsAuthenticated(false);
+    setCurrentUserRole(null);
   };
 
   if (loading) {

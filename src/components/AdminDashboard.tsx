@@ -282,7 +282,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
         {/* Current View */}
         {currentView === 'users' ? (
-          <UserManagement currentUserRole={userRole} />
+          <UserManagement />
         ) : (
           <>
             {/* Stats Cards */}
