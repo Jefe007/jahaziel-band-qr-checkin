@@ -53,6 +53,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [showScanner, setShowScanner] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
   const [currentView, setCurrentView] = useState<'dashboard' | 'users'>('dashboard');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchRegistrations();
@@ -64,13 +65,31 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        const { data: roleData } = await supabase
+        const { data: rolesData, error } = await supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', session.user.id)
-          .single();
+          .eq('user_id', session.user.id);
         
-        setUserRole(roleData?.role || '');
+        if (error) {
+          console.error('Error fetching roles:', error);
+          return;
+        }
+        
+        // Si tiene super_admin o admin, usar super_admin para máximos permisos
+        const roles = rolesData?.map(r => r.role) || [];
+        console.log('User roles:', roles);
+        
+        if (roles.includes('super_admin')) {
+          setUserRole('super_admin');
+        } else if (roles.includes('admin')) {
+          setUserRole('admin');
+        } else if (roles.includes('registrations_manager')) {
+          setUserRole('registrations_manager');
+        } else if (roles.includes('checkin_operator')) {
+          setUserRole('checkin_operator');
+        } else {
+          setUserRole('');
+        }
       }
     } catch (error) {
       console.error('Error fetching user role:', error);
@@ -258,7 +277,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 <LayoutDashboard className="w-4 h-4" />
                 <span>Dashboard</span>
               </Button>
-              {(userRole === 'super_admin') && (
+              {userRole === 'super_admin' && (
                 <Button
                   variant={currentView === 'users' ? 'default' : 'outline'}
                   onClick={() => setCurrentView('users')}
@@ -268,6 +287,9 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   <span>Usuarios</span>
                 </Button>
               )}
+              <div className="text-xs text-muted-foreground px-2">
+                Rol: {userRole || 'Cargando...'}
+              </div>
             </div>
             <Button 
               onClick={onLogout}
@@ -345,18 +367,30 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           </Card>
         </div>
 
-            {/* Actions */}
-            <div className="flex flex-wrap gap-4 mb-6">
-              {(userRole === 'admin' || userRole === 'super_admin' || userRole === 'registrations_manager') && (
-                <Button onClick={exportToCSV} variant="outline" className="flex items-center space-x-2">
-                  <Download className="w-4 h-4" />
-                  <span>Exportar CSV</span>
-                </Button>
-              )}
-              <Button onClick={() => setShowScanner(true)} className="flex items-center space-x-2">
-                <QrCode className="w-4 h-4" />
-                <span>Escanear QR</span>
-              </Button>
+            {/* Search and Actions */}
+            <div className="flex flex-col space-y-4 mb-6">
+              <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex-1 min-w-64">
+                  <Input
+                    placeholder="Buscar por nombre..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  {(userRole === 'admin' || userRole === 'super_admin' || userRole === 'registrations_manager') && (
+                    <Button onClick={exportToCSV} variant="outline" className="flex items-center space-x-2">
+                      <Download className="w-4 h-4" />
+                      <span>Exportar CSV</span>
+                    </Button>
+                  )}
+                  <Button onClick={() => setShowScanner(true)} className="flex items-center space-x-2">
+                    <QrCode className="w-4 h-4" />
+                    <span>Escanear QR</span>
+                  </Button>
+                </div>
+              </div>
             </div>
 
         {/* Registrations Table */}
@@ -381,7 +415,13 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {registrations.map((registration) => (
+                  {registrations
+                    .filter(registration => 
+                      registration.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      registration.telefono.includes(searchTerm) ||
+                      (registration.iglesia && registration.iglesia.toLowerCase().includes(searchTerm.toLowerCase()))
+                    )
+                    .map((registration) => (
                     <TableRow key={registration.id}>
                       <TableCell className="font-medium">{registration.nombre}</TableCell>
                       <TableCell>{registration.telefono}</TableCell>
