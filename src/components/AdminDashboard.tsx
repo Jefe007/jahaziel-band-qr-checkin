@@ -20,6 +20,8 @@ import {
   UserX
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { TicketGenerator } from "./TicketGenerator";
+import { QRScanner } from "./QRScanner";
 
 interface Registration {
   id: number;
@@ -44,6 +46,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [maxCapacity] = useState(1500);
   const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null);
   const [editDialog, setEditDialog] = useState(false);
+  const [showTicket, setShowTicket] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
     fetchRegistrations();
@@ -288,6 +292,10 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             <Download className="w-4 h-4" />
             <span>Exportar CSV</span>
           </Button>
+          <Button onClick={() => setShowScanner(true)} className="flex items-center space-x-2">
+            <QrCode className="w-4 h-4" />
+            <span>Escanear QR</span>
+          </Button>
         </div>
 
         {/* Registrations Table */}
@@ -334,34 +342,16 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           >
                             {registration.checked_in ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                           </Button>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button size="sm" variant="outline">
-                                <QrCode className="w-4 h-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>QR Code - {registration.nombre}</DialogTitle>
-                                <DialogDescription>
-                                  Código QR para check-in del evento
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="text-center p-8">
-                                <div className="bg-white p-4 rounded-lg inline-block">
-                                  <div className="text-xs font-mono text-center mb-2">
-                                    {generateQRData(registration)}
-                                  </div>
-                                  <div className="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center">
-                                    QR Code
-                                  </div>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-4">
-                                  Escanea este código para registrar la asistencia
-                                </p>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedRegistration(registration);
+                              setShowTicket(true);
+                            }}
+                          >
+                            <QrCode className="w-4 h-4" />
+                          </Button>
                           <Button
                             size="sm"
                             variant="destructive"
@@ -379,6 +369,28 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Ticket Generator Modal */}
+      {showTicket && selectedRegistration && (
+        <TicketGenerator
+          registration={selectedRegistration}
+          onClose={() => {
+            setShowTicket(false);
+            setSelectedRegistration(null);
+          }}
+        />
+      )}
+
+      {/* QR Scanner Modal */}
+      {showScanner && (
+        <QRScanner
+          onClose={() => setShowScanner(false)}
+          onScanSuccess={() => {
+            fetchRegistrations();
+            setShowScanner(false);
+          }}
+        />
+      )}
     </div>
   );
 }
