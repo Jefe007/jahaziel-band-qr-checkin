@@ -135,6 +135,19 @@ export type Database = {
         Args: { admin_email: string; admin_password: string }
         Returns: string
       }
+      create_user_with_role: {
+        Args: {
+          user_display_name?: string
+          user_email: string
+          user_password: string
+          user_role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: string
+      }
+      delete_user_completely: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -17,11 +17,14 @@ import {
   QrCode, 
   LogOut,
   UserCheck,
-  UserX
+  UserX,
+  Shield,
+  LayoutDashboard
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { TicketGenerator } from "./TicketGenerator";
 import { QRScanner } from "./QRScanner";
+import UserManagement from "./UserManagement";
 
 interface Registration {
   id: number;
@@ -48,11 +51,31 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [editDialog, setEditDialog] = useState(false);
   const [showTicket, setShowTicket] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [userRole, setUserRole] = useState<string>('');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'users'>('dashboard');
 
   useEffect(() => {
     fetchRegistrations();
     fetchSettings();
+    fetchUserRole();
   }, []);
+
+  const fetchUserRole = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        setUserRole(roleData?.role || '');
+      }
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+    }
+  };
 
   const fetchRegistrations = async () => {
     try {
@@ -224,18 +247,46 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             <h1 className="text-3xl font-bold text-gradient">Panel de Administración</h1>
             <p className="text-muted-foreground">Concierto JAHAZIEL BAND</p>
           </div>
-          <Button 
-            onClick={onLogout}
-            variant="outline"
-            className="flex items-center space-x-2"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Cerrar Sesión</span>
-          </Button>
+          <div className="flex items-center space-x-4">
+            {/* Navigation */}
+            <div className="flex items-center space-x-2">
+              <Button
+                variant={currentView === 'dashboard' ? 'default' : 'outline'}
+                onClick={() => setCurrentView('dashboard')}
+                className="flex items-center space-x-2"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Dashboard</span>
+              </Button>
+              {(userRole === 'super_admin') && (
+                <Button
+                  variant={currentView === 'users' ? 'default' : 'outline'}
+                  onClick={() => setCurrentView('users')}
+                  className="flex items-center space-x-2"
+                >
+                  <Shield className="w-4 h-4" />
+                  <span>Usuarios</span>
+                </Button>
+              )}
+            </div>
+            <Button 
+              onClick={onLogout}
+              variant="outline"
+              className="flex items-center space-x-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Cerrar Sesión</span>
+            </Button>
+          </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        {/* Current View */}
+        {currentView === 'users' ? (
+          <UserManagement currentUserRole={userRole} />
+        ) : (
+          <>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Registros</CardTitle>
@@ -294,17 +345,19 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           </Card>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-wrap gap-4 mb-6">
-          <Button onClick={exportToCSV} variant="outline" className="flex items-center space-x-2">
-            <Download className="w-4 h-4" />
-            <span>Exportar CSV</span>
-          </Button>
-          <Button onClick={() => setShowScanner(true)} className="flex items-center space-x-2">
-            <QrCode className="w-4 h-4" />
-            <span>Escanear QR</span>
-          </Button>
-        </div>
+            {/* Actions */}
+            <div className="flex flex-wrap gap-4 mb-6">
+              {(userRole === 'admin' || userRole === 'super_admin' || userRole === 'registrations_manager') && (
+                <Button onClick={exportToCSV} variant="outline" className="flex items-center space-x-2">
+                  <Download className="w-4 h-4" />
+                  <span>Exportar CSV</span>
+                </Button>
+              )}
+              <Button onClick={() => setShowScanner(true)} className="flex items-center space-x-2">
+                <QrCode className="w-4 h-4" />
+                <span>Escanear QR</span>
+              </Button>
+            </div>
 
         {/* Registrations Table */}
         <Card>
@@ -343,6 +396,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
+                          {/* Check-in button - available to all roles */}
                           <Button
                             size="sm"
                             variant="outline"
@@ -350,23 +404,31 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           >
                             {registration.checked_in ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                           </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedRegistration(registration);
-                              setShowTicket(true);
-                            }}
-                          >
-                            <QrCode className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => deleteRegistration(registration.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          
+                          {/* Ticket generation - available to registrations_manager, admin, super_admin */}
+                          {(userRole === 'admin' || userRole === 'super_admin' || userRole === 'registrations_manager') && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedRegistration(registration);
+                                setShowTicket(true);
+                              }}
+                            >
+                              <QrCode className="w-4 h-4" />
+                            </Button>
+                          )}
+                          
+                          {/* Delete button - available to registrations_manager, admin, super_admin */}
+                          {(userRole === 'admin' || userRole === 'super_admin' || userRole === 'registrations_manager') && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => deleteRegistration(registration.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -376,6 +438,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </div>
           </CardContent>
         </Card>
+          </>
+        )}
       </div>
 
       {/* Ticket Generator Modal */}

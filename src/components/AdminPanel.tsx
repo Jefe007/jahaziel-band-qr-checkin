@@ -40,14 +40,14 @@ export default function AdminPanel() {
 
   const checkAdminRole = async (userId: string) => {
     try {
-      const { data: adminRole } = await supabase
+      const { data: userRole } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .eq('role', 'admin')
+        .in('role', ['admin', 'super_admin', 'checkin_operator', 'registrations_manager'])
         .single();
 
-      setIsAuthenticated(!!adminRole);
+      setIsAuthenticated(!!userRole);
     } catch (error) {
       console.error('Error checking admin role:', error);
       setIsAuthenticated(false);
