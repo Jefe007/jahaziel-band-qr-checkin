@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "@/hooks/use-toast";
 import { Music, MapPin, Calendar, Clock, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { TicketGenerator } from "./TicketGenerator";
 
 interface FormData {
   nombre: string;
@@ -28,6 +29,8 @@ export default function ConcertRegistration() {
   });
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
+  const [showTicket, setShowTicket] = useState(false);
+  const [registrationData, setRegistrationData] = useState<any>(null);
 
   const handleInputChange = (field: keyof FormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -94,9 +97,11 @@ export default function ConcertRegistration() {
       }
 
       // Insert registration
-      const { error } = await supabase
+      const { data: newRegistration, error } = await supabase
         .from('registrations')
-        .insert([formData]);
+        .insert([formData])
+        .select()
+        .single();
 
       if (error) throw error;
 
@@ -105,7 +110,9 @@ export default function ConcertRegistration() {
         description: "Te has registrado correctamente para el concierto de JAHAZIEL BAND.",
       });
       
+      setRegistrationData(newRegistration);
       setRegistered(true);
+      setShowTicket(true);
     } catch (error) {
       console.error('Registration error:', error);
       toast({ 
@@ -137,15 +144,31 @@ export default function ConcertRegistration() {
                 Pronto recibirás más detalles sobre el evento. ¡Te esperamos!
               </p>
             </div>
-            <Button 
-              onClick={() => window.location.reload()} 
-              variant="outline"
-              className="w-full"
-            >
-              Realizar otro registro
-            </Button>
+            <div className="flex space-x-2">
+              <Button 
+                onClick={() => setShowTicket(true)} 
+                className="flex-1 gradient-hero text-white"
+              >
+                Ver Ticket
+              </Button>
+              <Button 
+                onClick={() => window.location.reload()} 
+                variant="outline"
+                className="flex-1"
+              >
+                Nuevo Registro
+              </Button>
+            </div>
           </CardContent>
         </Card>
+        
+        {/* Show Ticket Modal */}
+        {showTicket && registrationData && (
+          <TicketGenerator 
+            registration={registrationData}
+            onClose={() => setShowTicket(false)}
+          />
+        )}
       </div>
     );
   }
