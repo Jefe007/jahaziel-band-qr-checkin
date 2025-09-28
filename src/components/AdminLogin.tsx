@@ -12,8 +12,8 @@ interface AdminLoginProps {
 }
 
 export default function AdminLogin({ onLogin }: AdminLoginProps) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@jahaziel.com"); // Usuario admin por defecto
+  const [password, setPassword] = useState("admin123456");    // Contraseña admin por defecto
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 

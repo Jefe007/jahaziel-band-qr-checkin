@@ -123,7 +123,10 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Delete error:', error);
+        throw error;
+      }
       
       await fetchRegistrations();
       toast({ 
@@ -134,7 +137,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       console.error('Error deleting registration:', error);
       toast({ 
         title: "Error", 
-        description: "No se pudo eliminar la inscripción",
+        description: "No se pudo eliminar la inscripción. Verifica que estés autenticado como administrador.",
         variant: "destructive" 
       });
     }
@@ -165,7 +168,12 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   const generateQRData = (registration: Registration) => {
-    return `${registration.id}-${registration.telefono}`;
+    return JSON.stringify({
+      id: registration.id,
+      nombre: registration.nombre,
+      telefono: registration.telefono,
+      evento: 'JAHAZIEL BAND - Concierto en Vivo'
+    });
   };
 
   const exportToCSV = () => {
