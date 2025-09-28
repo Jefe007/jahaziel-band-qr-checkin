@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,6 @@ import {
   UserX
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import QRCode from 'qrcode';
 
 interface Registration {
   id: number;
@@ -36,53 +35,6 @@ interface Registration {
 
 interface AdminDashboardProps {
   onLogout: () => void;
-}
-
-interface QRDisplayProps {
-  registration: Registration;
-}
-
-function QRDisplay({ registration }: QRDisplayProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const generateQR = async () => {
-      if (!canvasRef.current) return;
-
-      const qrData = JSON.stringify({
-        id: registration.id,
-        nombre: registration.nombre,
-        telefono: registration.telefono,
-        evento: 'JAHAZIEL_BAND_2024',
-        fecha: '2024-09-28'
-      });
-
-      try {
-        await QRCode.toCanvas(canvasRef.current, qrData, {
-          width: 200,
-          color: {
-            dark: '#000000',
-            light: '#ffffff'
-          }
-        });
-      } catch (error) {
-        console.error('Error generating QR code:', error);
-      }
-    };
-
-    generateQR();
-  }, [registration]);
-
-  return (
-    <div className="text-center p-8">
-      <div className="bg-white p-4 rounded-lg inline-block">
-        <canvas ref={canvasRef} className="block mx-auto" />
-        <div className="text-xs font-mono text-center mt-2 max-w-[200px] break-all">
-          ID: {registration.id} | {registration.nombre}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
@@ -209,13 +161,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   const generateQRData = (registration: Registration) => {
-    return JSON.stringify({
-      id: registration.id,
-      nombre: registration.nombre,
-      telefono: registration.telefono,
-      evento: 'JAHAZIEL_BAND_2024',
-      fecha: '2024-09-28'
-    });
+    return `${registration.id}-${registration.telefono}`;
   };
 
   const exportToCSV = () => {
@@ -401,9 +347,16 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                   Código QR para check-in del evento
                                 </DialogDescription>
                               </DialogHeader>
-                              <QRDisplay registration={registration} />
-                              <div className="text-center mt-4">
-                                <p className="text-sm text-muted-foreground">
+                              <div className="text-center p-8">
+                                <div className="bg-white p-4 rounded-lg inline-block">
+                                  <div className="text-xs font-mono text-center mb-2">
+                                    {generateQRData(registration)}
+                                  </div>
+                                  <div className="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center">
+                                    QR Code
+                                  </div>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-4">
                                   Escanea este código para registrar la asistencia
                                 </p>
                               </div>
