@@ -85,50 +85,31 @@ const UserManagement: React.FC = () => {
     }
 
     try {
-      // Step 1: Create user with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: newUser.email,
-        password: newUser.password,
-        email_confirm: true,
-        user_metadata: {
-          display_name: newUser.displayName || newUser.email
+      // Get current session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No session found');
+      }
+
+      // Call the edge function to create the user
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          email: newUser.email,
+          password: newUser.password,
+          role: newUser.role,
+          displayName: newUser.displayName
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 
-      if (authError) {
-        console.error('Auth error:', authError);
-        throw authError;
+      if (error) {
+        throw error;
       }
 
-      if (!authData.user) {
-        throw new Error('No user returned from auth creation');
-      }
-
-      // Step 2: Add profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          email: newUser.email,
-          display_name: newUser.displayName || newUser.email
-        });
-
-      if (profileError) {
-        console.error('Profile error:', profileError);
-        throw profileError;
-      }
-
-      // Step 3: Add role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: newUser.role
-        });
-
-      if (roleError) {
-        console.error('Role error:', roleError);
-        throw roleError;
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create user');
       }
 
       toast({
